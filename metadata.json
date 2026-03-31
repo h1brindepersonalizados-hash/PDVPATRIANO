@@ -1,0 +1,5 @@
+{
+  "name": "PDV Papelaria Patriano",
+  "description": "Sistema para registrar e acompanhar pedidos feitos via Elo7 e WhatsApp, com controle de prazos e geração de relatórios financeiros.",
+  "requestFramePermissions": []
+}
