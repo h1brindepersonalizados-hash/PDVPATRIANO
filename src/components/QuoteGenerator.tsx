@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { FileText, Send, Plus, Trash2, X, Calculator } from 'lucide-react';
 
 interface QuoteItem {
@@ -15,6 +15,7 @@ export function QuoteGenerator() {
   const [isOpen, setIsOpen] = useState(false);
   const [clientName, setClientName] = useState('');
   const [phone, setPhone] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [notes, setNotes] = useState('Orçamento válido por 5 dias.\nFrete não incluso.');
   const [items, setItems] = useState<QuoteItem[]>([
     { id: '1', product: '', quantity: 1, unitPrice: 0 }
@@ -57,6 +58,9 @@ export function QuoteGenerator() {
     doc.setFontSize(10);
     doc.text(`Data: ${format(new Date(), 'dd/MM/yyyy')}`, 14, 40);
     doc.text(`Cliente: ${clientName || 'Não informado'}`, 14, 46);
+    if (deliveryDate) {
+      doc.text(`Data de Entrega: ${format(parseISO(deliveryDate), 'dd/MM/yyyy')}`, 14, 52);
+    }
 
     const tableData = items.map(item => [
       item.product || 'Item não especificado',
@@ -66,7 +70,7 @@ export function QuoteGenerator() {
     ]);
 
     autoTable(doc, {
-      startY: 55,
+      startY: 60,
       head: [['Produto/Serviço', 'Qtd', 'Valor Unit.', 'Subtotal']],
       body: tableData,
       theme: 'striped',
@@ -93,6 +97,10 @@ export function QuoteGenerator() {
     const total = calculateTotal();
     let message = `Olá ${clientName ? `*${clientName}*` : ''}, segue o seu orçamento da *Papelaria Patriano*:\n\n`;
     
+    if (deliveryDate) {
+      message += `*Data de Entrega:* ${format(parseISO(deliveryDate), 'dd/MM/yyyy')}\n\n`;
+    }
+
     message += `*Itens:*\n`;
     items.forEach(item => {
       if (item.product) {
@@ -150,7 +158,7 @@ export function QuoteGenerator() {
 
             <div className="p-6 space-y-6">
               {/* Client Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-stone-700 mb-1">Nome do Cliente</label>
                   <input
@@ -168,6 +176,15 @@ export function QuoteGenerator() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Ex: 11999999999"
+                    className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-700 mb-1">Data de Entrega</label>
+                  <input
+                    type="date"
+                    value={deliveryDate}
+                    onChange={(e) => setDeliveryDate(e.target.value)}
                     className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>
