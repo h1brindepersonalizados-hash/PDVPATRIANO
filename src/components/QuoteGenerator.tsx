@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format, parseISO } from 'date-fns';
 import { FileText, Send, Plus, Trash2, X, Calculator } from 'lucide-react';
+import { Product } from '../types';
 
 interface QuoteItem {
   id: string;
@@ -11,7 +12,11 @@ interface QuoteItem {
   unitPrice: number;
 }
 
-export function QuoteGenerator() {
+interface QuoteGeneratorProps {
+  products: Product[];
+}
+
+export function QuoteGenerator({ products }: QuoteGeneratorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [clientName, setClientName] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,7 +37,22 @@ export function QuoteGenerator() {
   };
 
   const updateItem = (id: string, field: keyof QuoteItem, value: string | number) => {
-    setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        
+        // Auto-fill price if product changes
+        if (field === 'product') {
+          const selectedProduct = products.find(p => p.name === value);
+          if (selectedProduct && selectedProduct.price > 0) {
+            updatedItem.unitPrice = selectedProduct.price;
+          }
+        }
+        
+        return updatedItem;
+      }
+      return item;
+    }));
   };
 
   const calculateTotal = () => {
@@ -199,14 +219,20 @@ export function QuoteGenerator() {
                 <div className="space-y-3">
                   {items.map((item, index) => (
                     <div key={item.id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-stone-50 p-3 rounded-lg border border-stone-100">
-                      <div className="flex-1 w-full">
+                      <div className="flex-1 w-full relative">
                         <input
                           type="text"
                           placeholder="Produto / Serviço"
                           value={item.product}
                           onChange={(e) => updateItem(item.id, 'product', e.target.value)}
+                          list={`products-list-${item.id}`}
                           className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
                         />
+                        <datalist id={`products-list-${item.id}`}>
+                          {products.map(p => (
+                            <option key={p.id} value={p.name} />
+                          ))}
+                        </datalist>
                       </div>
                       <div className="w-full sm:w-24">
                         <input

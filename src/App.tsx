@@ -11,18 +11,22 @@ import { OrderForm } from './components/OrderForm';
 import { ReportGenerator } from './components/ReportGenerator';
 import { QuoteGenerator } from './components/QuoteGenerator';
 import { ProductManager } from './components/ProductManager';
+import { OrderCalendar } from './components/OrderCalendar';
+import { ImportOrders } from './components/ImportOrders';
 import { useOrders } from './hooks/useOrders';
 import { useProducts } from './hooks/useProducts';
 import { Order } from './types';
-import { Plus, AlertTriangle } from 'lucide-react';
+import { Plus, AlertTriangle, List, Calendar as CalendarIcon, Search } from 'lucide-react';
 import { differenceInDays, parseISO } from 'date-fns';
 
 export default function App() {
-  const { orders, addOrder, updateOrder, deleteOrder } = useOrders();
+  const { orders, addOrder, updateOrder, deleteOrder, deleteOrders, importOrders, deleteAllOrders } = useOrders();
   const { products } = useProducts();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [showUrgentOnly, setShowUrgentOnly] = useState(false);
+  const [activeTab, setActiveTab] = useState<'list' | 'calendar'>('list');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const today = new Date();
   const urgentOrders = orders.filter((order) => {
@@ -31,7 +35,11 @@ export default function App() {
     return diff <= 3;
   });
 
-  const displayedOrders = showUrgentOnly ? urgentOrders : orders;
+  const displayedOrders = (showUrgentOnly ? urgentOrders : orders).filter(order => 
+    order.contract.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.product.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleAddClick = () => {
     setEditingOrder(null);
@@ -60,8 +68,9 @@ export default function App() {
           <p className="text-stone-500">Acompanhe seus pedidos e prazos de produção.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto flex-wrap md:flex-nowrap">
+          <ImportOrders onImport={importOrders} />
           <ProductManager />
-          <QuoteGenerator />
+          <QuoteGenerator products={products} />
           <ReportGenerator orders={orders} />
           <button
             onClick={handleAddClick}
@@ -92,27 +101,67 @@ export default function App() {
         </div>
       )}
 
-      <div className="mb-4 flex justify-between items-end">
-        <div className="flex items-center gap-4">
-          <h3 className="text-xl font-semibold text-stone-800">
-            {showUrgentOnly ? 'Pedidos Próximos do Prazo' : 'Lista de Pedidos'}
-          </h3>
-          {showUrgentOnly && (
-            <button
-              onClick={() => setShowUrgentOnly(false)}
-              className="text-sm text-pink-600 hover:text-pink-700 font-medium underline"
-            >
-              Mostrar todos
-            </button>
-          )}
+      <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-4">
+            <h3 className="text-xl font-semibold text-stone-800">
+              {showUrgentOnly ? 'Pedidos Próximos do Prazo' : 'Meus Pedidos'}
+            </h3>
+            {showUrgentOnly && (
+              <button
+                onClick={() => setShowUrgentOnly(false)}
+                className="text-sm text-pink-600 hover:text-pink-700 font-medium underline"
+              >
+                Mostrar todos
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar por contrato, cliente ou produto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none w-full sm:w-80 text-sm"
+            />
+          </div>
+        </div>
+        
+        <div className="flex bg-stone-100 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('list')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${
+              activeTab === 'list' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            <List size={16} />
+            Lista
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors ${
+              activeTab === 'calendar' ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            <CalendarIcon size={16} />
+            Calendário
+          </button>
         </div>
       </div>
 
-      <OrderList
-        orders={displayedOrders}
-        onEdit={handleEditClick}
-        onDelete={deleteOrder}
-      />
+      {activeTab === 'list' ? (
+        <OrderList
+          orders={displayedOrders}
+          onEdit={handleEditClick}
+          onDelete={deleteOrder}
+          onDeleteMultiple={deleteOrders}
+          onDeleteAll={deleteAllOrders}
+          onUpdateStatus={(id, status) => updateOrder(id, { status })}
+        />
+      ) : (
+        <OrderCalendar orders={displayedOrders} />
+      )}
 
       {isFormOpen && (
         <OrderForm

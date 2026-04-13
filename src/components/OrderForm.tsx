@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Order } from '../types';
+import { Order, Product } from '../types';
 import { X } from 'lucide-react';
+import { addDays, format } from 'date-fns';
 
 interface OrderFormProps {
   onSubmit: (order: Omit<Order, 'id' | 'createdAt'>) => void;
   onClose: () => void;
   initialData?: Order | null;
-  products: string[];
+  products: Product[];
 }
 
 export function OrderForm({ onSubmit, onClose, initialData, products }: OrderFormProps) {
@@ -14,30 +15,31 @@ export function OrderForm({ onSubmit, onClose, initialData, products }: OrderFor
     contract: '',
     clientName: '',
     partyTheme: '',
-    product: products[0] || 'Outro',
+    product: products[0]?.name || 'Outro',
     customProduct: '',
-    value: '',
+    value: products[0]?.price ? products[0].price.toString() : '',
     quantity: '1',
     shippingDate: '',
-    printDeadline: '',
+    printDeadline: format(addDays(new Date(), 2), 'yyyy-MM-dd'),
+    source: initialData?.source || 'Manual',
+    status: initialData?.status || 'PENDENTE',
   });
 
   useEffect(() => {
     if (initialData) {
+      const isKnownProduct = products.some(p => p.name === initialData.product);
       setFormData({
         contract: initialData.contract,
         clientName: initialData.clientName,
         partyTheme: initialData.partyTheme,
-        product: products.includes(initialData.product)
-          ? initialData.product
-          : 'Outro',
-        customProduct: products.includes(initialData.product)
-          ? ''
-          : initialData.product,
+        product: isKnownProduct ? initialData.product : 'Outro',
+        customProduct: isKnownProduct ? '' : initialData.product,
         value: initialData.value.toString(),
         quantity: initialData.quantity.toString(),
         shippingDate: initialData.shippingDate,
         printDeadline: initialData.printDeadline,
+        source: initialData.source || 'Manual',
+        status: initialData.status || 'PENDENTE',
       });
     }
   }, [initialData, products]);
@@ -46,7 +48,22 @@ export function OrderForm({ onSubmit, onClose, initialData, products }: OrderFor
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    
+    setFormData((prev) => {
+      const newData = { ...prev, [name]: value };
+      
+      // Auto-fill price when product changes
+      if (name === 'product') {
+        const selectedProduct = products.find(p => p.name === value);
+        if (selectedProduct && selectedProduct.price > 0) {
+          newData.value = selectedProduct.price.toString();
+        } else if (value === 'Outro') {
+          newData.value = '';
+        }
+      }
+      
+      return newData;
+    });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,6 +80,8 @@ export function OrderForm({ onSubmit, onClose, initialData, products }: OrderFor
       quantity: parseInt(formData.quantity, 10) || 1,
       shippingDate: formData.shippingDate,
       printDeadline: formData.printDeadline,
+      source: formData.source as any,
+      status: formData.status as any,
     });
     onClose();
   };
@@ -84,6 +103,42 @@ export function OrderForm({ onSubmit, onClose, initialData, products }: OrderFor
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  Origem
+                </label>
+                <select
+                  name="source"
+                  value={formData.source}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all bg-white"
+                >
+                  <option value="Manual">Manual</option>
+                  <option value="Shopee">Shopee</option>
+                  <option value="Elo7">Elo7</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all bg-white font-medium"
+                >
+                  <option value="PENDENTE">Pendente</option>
+                  <option value="IMPRIMIR">Imprimir</option>
+                  <option value="PRODUÇÃO">Produção</option>
+                  <option value="ENVIAR">Enviar</option>
+                  <option value="ENVIADO">Enviado</option>
+                </select>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">
                 Contrato / Pedido
@@ -140,8 +195,8 @@ export function OrderForm({ onSubmit, onClose, initialData, products }: OrderFor
                 className="w-full px-4 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition-all bg-white"
               >
                 {products.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
+                  <option key={p.id} value={p.name}>
+                    {p.name}
                   </option>
                 ))}
               </select>

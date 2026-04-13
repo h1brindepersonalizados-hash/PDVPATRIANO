@@ -18,36 +18,69 @@ export function useOrders() {
     }
   }, []);
 
-  const saveOrders = (newOrders: Order[]) => {
-    setOrders(newOrders);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newOrders));
-  };
-
   const addOrder = (orderData: Omit<Order, 'id' | 'createdAt'>) => {
     const newOrder: Order = {
       ...orderData,
       id: uuidv4(),
       createdAt: new Date().toISOString(),
     };
-    saveOrders([...orders, newOrder]);
+    setOrders(prev => {
+      const updated = [...prev, newOrder];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const importOrders = (newOrdersData: Omit<Order, 'id'>[]) => {
+    const newOrders: Order[] = newOrdersData.map(data => ({
+      ...data,
+      id: uuidv4(),
+    }));
+    setOrders(prev => {
+      const updated = [...prev, ...newOrders];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const updateOrder = (id: string, updatedData: Partial<Order>) => {
-    const newOrders = orders.map((order) =>
-      order.id === id ? { ...order, ...updatedData } : order
-    );
-    saveOrders(newOrders);
+    setOrders(prev => {
+      const updated = prev.map((order) =>
+        order.id === id ? { ...order, ...updatedData } : order
+      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const deleteOrder = (id: string) => {
-    const newOrders = orders.filter((order) => order.id !== id);
-    saveOrders(newOrders);
+    setOrders(prev => {
+      const updated = prev.filter((order) => order.id !== id);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteOrders = (ids: string[]) => {
+    setOrders(prev => {
+      const updated = prev.filter((order) => !ids.includes(order.id));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const deleteAllOrders = () => {
+    setOrders([]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
   };
 
   return {
     orders,
     addOrder,
+    importOrders,
     updateOrder,
     deleteOrder,
+    deleteOrders,
+    deleteAllOrders,
   };
 }
